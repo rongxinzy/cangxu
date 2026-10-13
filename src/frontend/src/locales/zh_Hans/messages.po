@@ -442,11 +442,11 @@ msgstr "采购明细"
 
 #: lib/enums/ModelInformation.tsx:216
 msgid "Purchase Receipt"
-msgstr ""
+msgstr "采购收货记录"
 
 #: lib/enums/ModelInformation.tsx:217
 msgid "Purchase Receipts"
-msgstr ""
+msgstr "采购收货记录"
 
 #: lib/enums/ModelInformation.tsx:222
 #: src/components/previews/models/SalesOrderPreview.tsx:15
@@ -6188,7 +6188,7 @@ msgstr "调整封包"
 
 #: src/forms/PurchaseOrderForms.tsx:660
 msgid "Choose available or quarantined stock"
-msgstr ""
+msgstr "选择可用库存或隔离库存"
 
 #: src/forms/PurchaseOrderForms.tsx:734
 msgid "Store at default location"
@@ -9387,7 +9387,7 @@ msgstr "扫码"
 
 #: src/pages/cangxu/CangxuHome.tsx:128
 msgid "Incoming inspection and archive"
-msgstr ""
+msgstr "来料检验与归档"
 
 #: src/pages/cangxu/CangxuHome.tsx:135
 msgid "Common workflows"
@@ -9468,7 +9468,7 @@ msgstr "收货记录加载失败。"
 
 #: src/pages/cangxu/IncomingReceiptPanel.tsx:247
 msgid "Purchase order"
-msgstr "Purchase order"
+msgstr "采购订单"
 
 #: src/pages/cangxu/IncomingReceiptPanel.tsx:251
 msgid "Stock state"
@@ -9488,7 +9488,7 @@ msgstr "实收数量"
 
 #: src/pages/cangxu/IncomingReceiptPanel.tsx:291
 msgid "Serial numbers"
-msgstr "Serial numbers"
+msgstr "序列号"
 
 #: src/pages/cangxu/IncomingReceiptPanel.tsx:295
 msgid "Inspection record could not be loaded."
