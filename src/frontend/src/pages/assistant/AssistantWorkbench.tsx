@@ -21,6 +21,7 @@ import { useApi } from '../../contexts/ApiContext';
 import { useUserState } from '../../states/UserState';
 import AssistantPage from './AssistantPage';
 import PartnerAvatar from './PartnerAvatar';
+import ProviderSettings from './ProviderSettings';
 import {
   ASSISTANT_API,
   type PartnerActivity,
@@ -84,6 +85,7 @@ export default function AssistantWorkbench() {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [providerSettingsOpen, setProviderSettingsOpen] = useState(false);
   const selectedId = searchParams.get('partner');
   const selected = partners.find((item) => item.partner_id === selectedId);
   const load = useCallback(async () => {
@@ -309,6 +311,14 @@ export default function AssistantWorkbench() {
               </button>
             </Menu.Target>
             <Menu.Dropdown className='partner-menu'>
+              {(user?.is_staff || user?.is_superuser) && (
+                <Menu.Item
+                  leftSection={<IconSettings size={16} />}
+                  onClick={() => setProviderSettingsOpen(true)}
+                >
+                  模型供应商
+                </Menu.Item>
+              )}
               <Menu.Item
                 leftSection={<IconSettings size={16} />}
                 onClick={() => navigate('/settings/user/')}
@@ -402,6 +412,10 @@ export default function AssistantWorkbench() {
             </Button>
           </form>
         </Modal>
+        <ProviderSettings
+          opened={providerSettingsOpen}
+          onClose={() => setProviderSettingsOpen(false)}
+        />
       </div>
     </div>
   );

@@ -147,7 +147,7 @@ class RuntimeTransport:
             # proxy discovery invokes CoreFoundation in Django-Q fork workers.
             self._session.trust_env = False
 
-    def _request(self, method, path, body=None, params=None):
+    def _request(self, method, path, body=None, params=None, timeout=None):
         """Perform one bounded request and normalize failures to codes."""
         url = f'{self._config.url}{path}'
         headers = {
@@ -161,7 +161,7 @@ class RuntimeTransport:
                 json=body,
                 params=params,
                 headers=headers,
-                timeout=self._config.timeout,
+                timeout=timeout or self._config.timeout,
             )
         except (requests.Timeout, requests.ConnectionError):
             raise RuntimeUnavailableError('network_unreachable') from None
@@ -179,6 +179,15 @@ class RuntimeTransport:
             raise RuntimeProtocolError('protocol_non_json') from None
         _require(isinstance(data, dict), 'protocol_non_object')
         return data
+
+    def provider_settings(self, method, data=None, *, test=False):
+        """Transport private deployment settings without exposing credentials."""
+        return self._request(
+            method,
+            '/v1/provider/test' if test else '/v1/provider',
+            data,
+            timeout=35 if test else None,
+        )
 
     @staticmethod
     def _error_code(response, fallback):

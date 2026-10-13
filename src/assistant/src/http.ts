@@ -4,6 +4,13 @@ import { type IncomingMessage, createServer } from 'node:http';
 import { join, resolve } from 'node:path';
 import type { EntryId, TaskId } from '@earendil-works/pi-durable';
 import { attachmentMetadata } from './attachments.ts';
+import {
+  ProviderSettingsError,
+  providerEnvironment,
+  providerSettingsStore,
+  publicSettings,
+  testProvider
+} from './provider-settings.ts';
 import type { ReceiptWork } from './receipt-duty.ts';
 import { businessReferences, context, openRuntime } from './runtime.ts';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -57,6 +64,24 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
     deployment
   );
   await mkdir(directory, { recursive: true, mode: 0o700 });
+  const settings = await providerSettingsStore(env);
+  const revisions = new Map<string, number>();
+  const imageCapabilities = new Map<string, boolean>();
+  const partnerLocks = new Map<string, Promise<void>>();
+  async function acquire(partner: string) {
+    const previous = partnerLocks.get(partner) ?? Promise.resolve();
+    let release!: () => void;
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    const queued = previous.then(() => held);
+    partnerLocks.set(partner, queued);
+    await previous;
+    return () => {
+      release();
+      if (partnerLocks.get(partner) === queued) partnerLocks.delete(partner);
+    };
+  }
   const pool = new Map<
     string,
     Promise<Awaited<ReturnType<typeof openRuntime>>>
@@ -65,6 +90,16 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
     if (!UUID.test(partner))
       throw new ProtocolError(400, 'invalid_partner', 'Partner UUID required');
     let result = pool.get(partner);
+    if (result && revisions.get(partner) !== settings.revision) {
+      const active = await result;
+      const inspection = await active.harness.inspect(context);
+      // Never interrupt an accepted reply or in-flight model/tool recovery.
+      if (!inspection.submissions.length && !inspection.tasks.length) {
+        await active.close();
+        pool.delete(partner);
+        result = undefined;
+      }
+    }
     if (!result) {
       if (pool.size >= maxPartners)
         throw new ProtocolError(
@@ -74,9 +109,12 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
         );
       result = openRuntime(join(directory, `${partner}.sqlite`), {
         ...env,
+        ...providerEnvironment(settings.current),
         ASSISTANT_PARTNER_ID: partner
       });
       pool.set(partner, result);
+      revisions.set(partner, settings.revision);
+      imageCapabilities.set(partner, settings.current.supports_images);
       result.catch(() => pool.delete(partner));
     }
     return result;
@@ -99,6 +137,7 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
   const server = createServer(async (request, response) => {
     response.setHeader('Content-Type', 'application/json; charset=utf-8');
     response.setHeader('Cache-Control', 'no-store');
+    let release: (() => void) | undefined;
     try {
       if (
         !timingSafeEqual(digest(request.headers.authorization ?? ''), expected)
@@ -115,6 +154,29 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
           'Deployment header does not match runtime'
         );
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (
+        url.pathname === '/v1/provider' ||
+        url.pathname === '/v1/provider/test'
+      ) {
+        let result: unknown;
+        if (request.method === 'GET' && url.pathname === '/v1/provider')
+          result = publicSettings(settings.current);
+        else if (request.method === 'PUT' && url.pathname === '/v1/provider')
+          result = await settings.update(await body(request));
+        else if (
+          request.method === 'POST' &&
+          url.pathname === '/v1/provider/test'
+        )
+          result = await testProvider(await body(request), settings.current);
+        else
+          throw new ProtocolError(
+            405,
+            'method_not_allowed',
+            'Unsupported provider operation'
+          );
+        response.end(JSON.stringify(result));
+        return;
+      }
       const match =
         /^\/v1\/partners\/([^/]+)(?:\/(messages|events|controls|status))?$/.exec(
           url.pathname
@@ -123,6 +185,13 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
         throw new ProtocolError(404, 'not_found', 'Unknown runtime route');
       const partner = match[1];
       const route = match[2];
+      if (!UUID.test(partner))
+        throw new ProtocolError(
+          400,
+          'invalid_partner',
+          'Partner UUID required'
+        );
+      release = await acquire(partner);
       const active = await runtime(partner);
       let result: unknown;
       if (request.method === 'GET' && (!route || route === 'status')) {
@@ -220,7 +289,7 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
           background_stopped: ledger?.stopped ?? false,
           pending_tasks: inspect.tasks.length,
           capabilities: {
-            images: env.ASSISTANT_MODEL_SUPPORTS_IMAGES !== 'false',
+            images: imageCapabilities.get(partner) ?? false,
             attachment_upload: true,
             file_context: true
           },
@@ -445,25 +514,37 @@ export async function createRuntimeServer(env: NodeJS.ProcessEnv) {
         error instanceof Error &&
         /reused|persistently stopped/.test(error.message);
       response.statusCode =
-        error instanceof ProtocolError ? error.status : conflict ? 409 : 503;
+        error instanceof ProviderSettingsError
+          ? 400
+          : error instanceof ProtocolError
+            ? error.status
+            : conflict
+              ? 409
+              : 503;
       response.end(
         JSON.stringify({
           error: {
             code:
-              error instanceof ProtocolError
-                ? error.code
-                : conflict
-                  ? 'conflict'
-                  : 'unavailable',
+              error instanceof ProviderSettingsError
+                ? 'invalid_provider'
+                : error instanceof ProtocolError
+                  ? error.code
+                  : conflict
+                    ? 'conflict'
+                    : 'unavailable',
             message:
-              error instanceof ProtocolError
+              error instanceof ProviderSettingsError
                 ? error.message
-                : conflict
-                  ? 'Request conflicts with durable state'
-                  : 'Assistant runtime unavailable'
+                : error instanceof ProtocolError
+                  ? error.message
+                  : conflict
+                    ? 'Request conflicts with durable state'
+                    : 'Assistant runtime unavailable'
           }
         })
       );
+    } finally {
+      release?.();
     }
   });
   server.requestTimeout = 10000;
