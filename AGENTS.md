@@ -24,5 +24,5 @@
 See [CONTRIBUTING.md](CONTRIBUTING.md) for codebase guidance.
 Security reports must follow the security policy in [SECURITY.md](docs/docs/SECURITY.md) and provide how they interact with the [threat model](docs/docs/concepts/threat_model.md).
 
-Do not open a pull request until a human has manually reviewed the concrete diff. Do not file AI generated issues under any circumstances.
+Open a pull request once the implementation and required checks are ready; review can take place on the PR and is not a precondition for opening it. Do not file AI generated issues under any circumstances.
 Using AI generated content in issue/PR discussions might lead to code of conduct violations and/or bans.

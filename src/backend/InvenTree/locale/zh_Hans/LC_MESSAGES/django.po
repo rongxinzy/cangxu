@@ -388,7 +388,7 @@ msgstr "复制备注"
 
 #: InvenTree/serializers.py:1110
 msgid "Copy notes from the original item"
-msgstr ""
+msgstr "从原始物料复制备注"
 
 #: InvenTree/serializers.py:1111
 msgid "Copy Lines"
@@ -432,7 +432,7 @@ msgstr "Bulgarian"
 
 #: InvenTree/setting/locales.py:22
 msgid "Catalan"
-msgstr ""
+msgstr "加泰罗尼亚语"
 
 #: InvenTree/setting/locales.py:23
 msgid "Czech"
@@ -1640,19 +1640,19 @@ msgstr "用户没有权限删除此附件"
 
 #: common/api.py:1462
 msgid "User does not have permission to delete these parameters"
-msgstr ""
+msgstr "您没有删除这些参数的权限"
 
 #: common/api.py:1479
 msgid "User does not have permission to delete this parameter"
-msgstr ""
+msgstr "您没有删除此参数的权限"
 
 #: common/api.py:1518 common/api.py:1519
 msgid "This field is required"
-msgstr ""
+msgstr "此字段为必填项"
 
 #: common/api.py:1525
 msgid "Invalid model ID"
-msgstr ""
+msgstr "模型 ID 无效"
 
 #: common/api.py:1620 common/serializers.py:1157 common/serializers.py:1205
 msgid "Selection list is locked"
@@ -1660,39 +1660,39 @@ msgstr "选择列表已锁定"
 
 #: common/api.py:1814
 msgid "Provider"
-msgstr ""
+msgstr "提供方"
 
 #: common/api.py:1818
 msgid "Human friendly name for the application - will be displayed to users"
-msgstr ""
+msgstr "面向用户显示的应用名称"
 
 #: common/api.py:1822
 msgid "Provider ID"
-msgstr ""
+msgstr "提供方 ID"
 
 #: common/api.py:1824
 msgid "Unique identifier - required for generic providers that can be configured multiple times such as SAML or OpenID Connect"
-msgstr ""
+msgstr "唯一标识符；用于可配置多个实例的通用提供方，例如 SAML 或 OpenID Connect"
 
 #: common/api.py:1853
 msgid "Provider is not supported"
-msgstr ""
+msgstr "不支持此提供方"
 
 #: common/api.py:1865
 msgid "A SocialApp with this provider already exists"
-msgstr ""
+msgstr "此提供方对应的 SocialApp 已存在"
 
 #: common/api.py:1879
 msgid "Provide an IdP metadata URL, or configure the IdP SSO URL, SLO URL, and X.509 certificate."
-msgstr ""
+msgstr "请提供 IdP 元数据 URL，或配置 IdP 的 SSO URL、SLO URL 和 X.509 证书。"
 
 #: common/api.py:1912
 msgid "The built-in default OIDC client cannot be deleted."
-msgstr ""
+msgstr "内置默认 OIDC 客户端不能删除。"
 
 #: common/api.py:1925
 msgid "The built-in default OIDC client secret cannot be regenerated."
-msgstr ""
+msgstr "内置默认 OIDC 客户端密钥不能重新生成。"
 
 #: common/currency.py:135
 msgid "Invalid currency code"
@@ -1944,7 +1944,7 @@ msgstr "单位名称必须是有效的标识符"
 #: common/models.py:1882
 #, python-format
 msgid "Unit definition results in a circular or invalid reference: %(error)s"
-msgstr ""
+msgstr "单位定义包含循环或无效引用：%(error)s"
 
 #: common/models.py:1890
 msgid "Unit name"
@@ -2403,19 +2403,19 @@ msgstr "可选注释字段"
 #: common/models.py:3225 common/models.py:3227 common/serializers.py:959
 #: common/serializers.py:963
 msgid "This field is required."
-msgstr ""
+msgstr "此字段为必填项。"
 
 #: common/models.py:3364
 msgid "Is this note a template (not linked to a specific model instance)?"
-msgstr ""
+msgstr "此备注是否为模板（不关联具体模型实例）？"
 
 #: common/models.py:3374
 msgid "Target model type for this note"
-msgstr ""
+msgstr "此备注的目标模型类型"
 
 #: common/models.py:3378
 msgid "Target model instance ID for this note"
-msgstr ""
+msgstr "此备注的目标模型实例 ID"
 
 #: common/models.py:3385 company/models.py:793
 msgid "Primary"
@@ -2423,23 +2423,23 @@ msgstr "主要的"
 
 #: common/models.py:3386
 msgid "Is this the primary note for the associated model?"
-msgstr ""
+msgstr "这是否为关联模型的主要备注？"
 
 #: common/models.py:3390
 msgid "Note title"
-msgstr ""
+msgstr "备注标题"
 
 #: common/models.py:3397
 msgid "Optional description field"
-msgstr ""
+msgstr "可选的描述字段"
 
 #: common/models.py:3402
 msgid "Content"
-msgstr ""
+msgstr "内容"
 
 #: common/models.py:3403
 msgid "Note content"
-msgstr ""
+msgstr "备注内容"
 
 #: common/models.py:3421
 msgid "Image file"
@@ -2655,7 +2655,7 @@ msgstr "指示是否更改此设置需要确认"
 
 #: common/serializers.py:138
 msgid "Indicating behavior or purpose of setting."
-msgstr ""
+msgstr "说明此设置的行为或用途。"
 
 #: common/serializers.py:150
 msgid "This setting requires confirmation before changing. Please confirm the change."
@@ -2741,15 +2741,15 @@ msgstr "用户无权为此模式创建或编辑附件"
 
 #: common/serializers.py:904
 msgid "Only staff users can create or edit note templates"
-msgstr ""
+msgstr "只有员工用户可以创建或编辑备注模板"
 
 #: common/serializers.py:914
 msgid "Invalid model type specified for note"
-msgstr ""
+msgstr "备注指定的模型类型无效"
 
 #: common/serializers.py:915
 msgid "User does not have permission to create or edit notes for this model"
-msgstr ""
+msgstr "您没有为此模型创建或编辑备注的权限"
 
 #: common/serializers.py:1088
 msgid "User does not have permission to create or edit parameters for this model"
@@ -2757,27 +2757,27 @@ msgstr "用户没有权限为此模型创建或编辑参数"
 
 #: common/serializers.py:1287
 msgid "Attachment Count"
-msgstr ""
+msgstr "附件数量"
 
 #: common/serializers.py:1288
 msgid "Number of attachments associated with this instance"
-msgstr ""
+msgstr "与此实例关联的附件数量"
 
 #: common/serializers.py:1293
 msgid "Note Count"
-msgstr ""
+msgstr "备注数量"
 
 #: common/serializers.py:1294
 msgid "Number of notes associated with this instance"
-msgstr ""
+msgstr "与此实例关联的备注数量"
 
 #: common/serializers.py:1299
 msgid "Parameter Count"
-msgstr ""
+msgstr "参数数量"
 
 #: common/serializers.py:1300
 msgid "Number of parameters associated with this instance"
-msgstr ""
+msgstr "与此实例关联的参数数量"
 
 #: common/setting/system.py:96
 msgid "No group"
@@ -3737,11 +3737,11 @@ msgstr "将具有相同零件、目的地和目标日期的新采购订单行项
 
 #: common/setting/system.py:1035
 msgid "Default Receive Location"
-msgstr ""
+msgstr "默认收货库位"
 
 #: common/setting/system.py:1037
 msgid "Default destination location for received goods on new purchase orders"
-msgstr ""
+msgstr "新建采购订单中收货物料的默认目标库位"
 
 #: common/setting/system.py:1045
 msgid "Enable password forgot"
@@ -3809,7 +3809,7 @@ msgstr "当用户组未被身份提供商(IdP)支持时，是否移除该用户�
 
 #: common/setting/system.py:1108
 msgid "Disabling this setting will stop cleaning up groups that external users no longer belong to. This might cause security issues."
-msgstr ""
+msgstr "关闭此设置后，系统将不再清理外部用户已不属于的用户组，这可能带来安全风险。"
 
 #: common/setting/system.py:1113
 msgid "Email required"
@@ -4089,27 +4089,27 @@ msgstr "启用定期 Ping 检测，确认注册设备的运行状态"
 
 #: common/setting/system.py:1354
 msgid "Enable Sales Orders"
-msgstr ""
+msgstr "启用销售订单"
 
 #: common/setting/system.py:1355
 msgid "Enable sales order functionality in the user interface"
-msgstr ""
+msgstr "在用户界面中启用销售订单功能"
 
 #: common/setting/system.py:1361
 msgid "Enable Purchase Orders"
-msgstr ""
+msgstr "启用采购订单"
 
 #: common/setting/system.py:1362
 msgid "Enable purchase order functionality in the user interface"
-msgstr ""
+msgstr "在用户界面中启用采购订单功能"
 
 #: common/setting/system.py:1368
 msgid "Enable Build Orders"
-msgstr ""
+msgstr "启用生产工单"
 
 #: common/setting/system.py:1369
 msgid "Enable build order functionality in the user interface"
-msgstr ""
+msgstr "在用户界面中启用生产工单功能"
 
 #: common/setting/user.py:23
 msgid "Inline label display"
@@ -4345,11 +4345,11 @@ msgstr "表格表头固定于表格顶部"
 
 #: common/setting/user.py:209
 msgid "Rotated Table Headers"
-msgstr ""
+msgstr "旋转表格标题"
 
 #: common/setting/user.py:210
 msgid "Display table column headers with rotated (vertical) text"
-msgstr ""
+msgstr "将表格列标题旋转为竖排显示"
 
 #: common/setting/user.py:215
 msgid "Show Spotlight"
@@ -4467,11 +4467,11 @@ msgstr "启用筛选详细导航参数到视图 url"
 
 #: common/validators.py:60
 msgid "Invalid content type"
-msgstr ""
+msgstr "内容类型无效"
 
 #: common/validators.py:63
 msgid "Model type does not support notes"
-msgstr ""
+msgstr "此模型类型不支持备注"
 
 #: common/validators.py:82
 msgid "All models"
@@ -5105,7 +5105,7 @@ msgstr "数据文件维度无效"
 
 #: importer/serializers.py:98
 msgid "Model type cannot be changed after the import session has been created"
-msgstr ""
+msgstr "导入会话创建后，不能更改模型类型"
 
 #: importer/serializers.py:113 importer/serializers.py:116
 msgid "Invalid field defaults"
@@ -6214,7 +6214,7 @@ msgstr "条形码已被使用"
 
 #: order/serializers.py:1029
 msgid "Enter batch code for incoming stock items - applied to any line item which does not specify its own batch code"
-msgstr ""
+msgstr "输入来料批次号；未单独填写批次号的行项目将使用此批次号"
 
 #: order/serializers.py:1051 order/serializers.py:2352
 #: stock/serializers.py:1162
@@ -9181,35 +9181,35 @@ msgstr "公司_图片标签需要一个公司实例"
 
 #: scim/authentication.py:59
 msgid "Invalid SCIM authorization header"
-msgstr ""
+msgstr "SCIM 授权请求头无效"
 
 #: scim/authentication.py:66
 msgid "Invalid SCIM bearer token"
-msgstr ""
+msgstr "SCIM Bearer 令牌无效"
 
 #: scim/models.py:27
 msgid "SCIM Configuration"
-msgstr ""
+msgstr "SCIM 配置"
 
 #: scim/models.py:32
 msgid "Enable the SCIM provisioning endpoint"
-msgstr ""
+msgstr "启用 SCIM 用户配置接口"
 
 #: scim/models.py:38
 msgid "Secret Digest"
-msgstr ""
+msgstr "密钥摘要"
 
 #: scim/models.py:39
 msgid "HMAC digest of the current SCIM bearer secret"
-msgstr ""
+msgstr "当前 SCIM Bearer 密钥的 HMAC 摘要"
 
 #: scim/models.py:43
 msgid "Secret Generated"
-msgstr ""
+msgstr "密钥生成时间"
 
 #: scim/models.py:46
 msgid "Last Used"
-msgstr ""
+msgstr "上次使用时间"
 
 #: stock/api.py:341
 msgid "Filter by location depth"
@@ -9829,27 +9829,27 @@ msgstr "输入新项目的序列号"
 
 #: stock/serializers.py:480
 msgid "Duplicate Stock Item"
-msgstr ""
+msgstr "复制库存物料"
 
 #: stock/serializers.py:481
 msgid "Copy initial data from another stock item"
-msgstr ""
+msgstr "从其他库存物料复制初始数据"
 
 #: stock/serializers.py:486
 msgid "Copy Test Results"
-msgstr ""
+msgstr "复制测试结果"
 
 #: stock/serializers.py:487
 msgid "Copy test results from the original stock item"
-msgstr ""
+msgstr "从原库存物料复制测试结果"
 
 #: stock/serializers.py:492
 msgid "Copy History"
-msgstr ""
+msgstr "复制历史记录"
 
 #: stock/serializers.py:493
 msgid "Copy stock history from the original stock item"
-msgstr ""
+msgstr "从原库存物料复制库存历史记录"
 
 #: stock/serializers.py:602
 msgid "Supplier Part Number"
@@ -10426,11 +10426,11 @@ msgstr "重要日期"
 
 #: users/authentication.py:29
 msgid "Invalid token."
-msgstr ""
+msgstr "令牌无效。"
 
 #: users/authentication.py:33
 msgid "User inactive or deleted."
-msgstr ""
+msgstr "用户已停用或删除。"
 
 #: users/authentication.py:36 users/models.py:278
 msgid "Token has been revoked"
@@ -10474,39 +10474,39 @@ msgstr "撤销"
 
 #: users/models.py:284
 msgid "Revocation Reason"
-msgstr ""
+msgstr "撤销原因"
 
 #: users/models.py:285
 msgid "As entered by the user or action during revocation"
-msgstr ""
+msgstr "用户填写的内容或撤销操作原因"
 
 #: users/models.py:293
 msgid "Revoked By"
-msgstr ""
+msgstr "撤销人"
 
 #: users/models.py:294
 msgid "User who revoked the token"
-msgstr ""
+msgstr "撤销此令牌的用户"
 
 #: users/models.py:304
 msgid "User who issued the token"
-msgstr ""
+msgstr "签发此令牌的用户"
 
 #: users/models.py:310
 msgid "Token Version"
-msgstr ""
+msgstr "令牌版本"
 
 #: users/models.py:311
 msgid "Version of the API token"
-msgstr ""
+msgstr "API 令牌版本"
 
 #: users/models.py:318
 msgid "Pepper ID"
-msgstr ""
+msgstr "Pepper ID"
 
 #: users/models.py:319
 msgid "Identifier for the pepper used in token hashing"
-msgstr ""
+msgstr "用于令牌哈希的 Pepper 标识符"
 
 #: users/models.py:415
 msgid "Permission set"
