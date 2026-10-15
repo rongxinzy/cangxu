@@ -348,3 +348,83 @@ test('switching partners leaves the running background reply alone', async ({
   await expect(page.getByRole('button', { name: '停止回复' })).toHaveCount(0);
   expect(stops).toEqual([]);
 });
+
+test('provider settings preserve secrets and test before saving', async ({
+  page
+}) => {
+  await mock(page);
+  let config = {
+    provider: 'openai-compatible',
+    base_url: 'https://example.invalid/v1',
+    model_id: 'synthetic-model',
+    has_api_key: true,
+    supports_images: false,
+    max_output_tokens: 2048,
+    timeout_ms: 180000
+  };
+  const calls: any[] = [];
+  let fail = false;
+  await page.route('**/api/cangxu/assistant/provider/**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'GET') return route.fulfill({ json: config });
+    const body = request.postDataJSON();
+    calls.push({ url: request.url(), body });
+    if (fail)
+      return route.fulfill({
+        status: 502,
+        json: { detail: '模型连接失败，请检查配置。' }
+      });
+    if (request.method() === 'PUT') {
+      const { api_key, ...safe } = body;
+      config = { ...safe, has_api_key: true };
+      return route.fulfill({ json: config });
+    }
+    return route.fulfill({ json: { ok: true, message: '连接成功' } });
+  });
+  await page.goto(entry);
+  await page.getByRole('button', { name: '账号菜单' }).click();
+  await page.getByRole('menuitem', { name: '模型供应商' }).click();
+  const dialog = page.getByRole('dialog', { name: '模型供应商' });
+  await expect(dialog.getByRole('textbox', { name: '模型名称' })).toHaveValue(
+    'synthetic-model'
+  );
+  await expect(dialog.getByRole('textbox', { name: 'API Key' })).toHaveValue(
+    ''
+  );
+  await dialog
+    .getByRole('textbox', { name: '模型名称' })
+    .fill('new-synthetic-model');
+  await dialog.getByRole('button', { name: '测试连接' }).click();
+  await expect(dialog.getByRole('status')).toContainText('连接成功');
+  expect(config.model_id).toBe('synthetic-model');
+  expect(calls[0].body.api_key).toBe('');
+  await dialog.getByRole('button', { name: '保存配置' }).click();
+  await expect(dialog.getByRole('status')).toContainText('已保存');
+  expect(config.model_id).toBe('new-synthetic-model');
+  await dialog
+    .getByRole('textbox', { name: 'API Key' })
+    .fill('synthetic-replacement-key');
+  fail = true;
+  await dialog.getByRole('button', { name: '测试连接' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('模型连接失败');
+  await expect(dialog.getByRole('textbox', { name: 'API Key' })).toHaveValue(
+    'synthetic-replacement-key'
+  );
+  await page.screenshot({ path: '/tmp/cangxu-provider-settings-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: '/tmp/cangxu-provider-settings-mobile.png' });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth
+    )
+  ).toBe(true);
+});
+
+test('regular users do not see global provider settings', async ({ page }) => {
+  await mock(page);
+  await page.goto(`${entry}?regular-user`);
+  await page.getByRole('button', { name: '账号菜单' }).click();
+  await expect(page.getByRole('menuitem', { name: '模型供应商' })).toHaveCount(
+    0
+  );
+});

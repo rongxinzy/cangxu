@@ -3583,6 +3583,7 @@ from .assistant_attachment_api import (
     AssistantInternalAttachmentView,
 )
 from .assistant_business_api import AssistantBusinessToolsView
+from .assistant_provider_api import AssistantProviderViewSet
 from .assistant_tool_api import AssistantInternalToolsView
 
 router.register(
@@ -3622,6 +3623,16 @@ router.register(
 )
 
 urlpatterns = [
+    path(
+        'assistant/provider/',
+        AssistantProviderViewSet.as_view({'get': 'list', 'put': 'save'}),
+        name='cangxu-assistant-provider',
+    ),
+    path(
+        'assistant/provider/test/',
+        AssistantProviderViewSet.as_view({'post': 'test'}),
+        name='cangxu-assistant-provider-test',
+    ),
     *router.urls,
     path(
         'assistant/internal/attachments/<uuid:attachment_id>/',
