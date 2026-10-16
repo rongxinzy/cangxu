@@ -101,6 +101,8 @@ export default defineConfig({
     {
       command: 'invoke dev.server -a 0.0.0.0:8000',
       env: {
+        // The test suite asserts the canonical English source strings
+        INVENTREE_LANGUAGE: 'en',
         INVENTREE_DEBUG: 'True',
         INVENTREE_LOG_LEVEL: 'WARNING',
         INVENTREE_PLUGINS_ENABLED: 'True',

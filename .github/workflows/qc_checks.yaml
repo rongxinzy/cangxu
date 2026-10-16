@@ -172,6 +172,8 @@ jobs:
     needs: paths-filter
     if: needs.paths-filter.outputs.server == 'true' || needs.paths-filter.outputs.force == 'true'
     env:
+      # Unit tests assert the canonical English source strings
+      INVENTREE_LANGUAGE: en
       INVENTREE_DB_ENGINE: django.db.backends.sqlite3
       INVENTREE_DB_NAME: ../inventree_unit_test_db.sqlite3
       INVENTREE_ADMIN_USER: testuser
@@ -228,7 +230,9 @@ jobs:
         run: echo "${DIFF}" >> $GITHUB_STEP_SUMMARY
 
       - name: Check for differences in API Schema
-        if: needs.paths-filter.outputs.api == 'false'
+        # The published schema tracks upstream InvenTree releases only: a fork
+        # which adds API endpoints can never match it byte-for-byte
+        if: github.repository == 'inventree/inventree' && needs.paths-filter.outputs.api == 'false'
         run: |
           diff --color -u src/backend/InvenTree/schema.yml api.yaml
           diff -u src/backend/InvenTree/schema.yml api.yaml && echo "no difference in API schema " || exit 2
@@ -311,6 +315,8 @@ jobs:
       id-token: write
 
     env:
+      # Unit tests assert the canonical English source strings
+      INVENTREE_LANGUAGE: en
       WRAPPER_NAME: inventree-python
       INVENTREE_DB_ENGINE: django.db.backends.sqlite3
       INVENTREE_DB_NAME: ../inventree_unit_test_db.sqlite3
@@ -376,6 +382,8 @@ jobs:
         python_version: [3.12, 3.14]
 
     env:
+      # Unit tests assert the canonical English source strings
+      INVENTREE_LANGUAGE: en
       INVENTREE_DB_NAME: ./inventree.sqlite
       INVENTREE_DB_ENGINE: sqlite3
       INVENTREE_PLUGINS_ENABLED: true
@@ -462,6 +470,8 @@ jobs:
     if: needs.paths-filter.outputs.server == 'true' || needs.paths-filter.outputs.force == 'true'
 
     env:
+      # Unit tests assert the canonical English source strings
+      INVENTREE_LANGUAGE: en
       INVENTREE_DB_ENGINE: django.db.backends.postgresql
       INVENTREE_DB_USER: inventree
       INVENTREE_DB_PASSWORD: password
@@ -512,6 +522,8 @@ jobs:
     if: needs.paths-filter.outputs.server == 'true' || needs.paths-filter.outputs.force == 'true'
 
     env:
+      # Unit tests assert the canonical English source strings
+      INVENTREE_LANGUAGE: en
       # Database backend configuration
       INVENTREE_DB_ENGINE: django.db.backends.mysql
       INVENTREE_DB_USER: root
