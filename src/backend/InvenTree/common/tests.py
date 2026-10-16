@@ -242,16 +242,19 @@ class AttachmentTest(InvenTreeAPITestCase):
             img_obj.save(buf, format='PNG')
             png_bytes = buf.getvalue()
 
-        attachment = Attachment.objects.create(
-            attachment=ContentFile(png_bytes, 'thumbnail_location.png'),
-            comment='Testing thumbnail location',
-            model_type='part',
-            model_id=part.pk,
-        )
+        # The 'create' call defers thumbnail generation until the surrounding
+        # transaction commits, so execute those callbacks here: no worker is
+        # running in the test environment, and the task then runs synchronously
+        with self.captureOnCommitCallbacks(execute=True):
+            attachment = Attachment.objects.create(
+                attachment=ContentFile(png_bytes, 'thumbnail_location.png'),
+                comment='Testing thumbnail location',
+                model_type='part',
+                model_id=part.pk,
+            )
 
-        # The 'create' call offloads a task which generates the thumbnail synchronously
-        # (as no worker is running in the test environment), on a *separate* model
-        # instance - refresh from the DB to pick up those changes
+        # The task runs on a *separate* model instance - refresh from the DB to
+        # pick up those changes
         attachment.refresh_from_db()
 
         self.assertTrue(attachment.is_image)
@@ -1194,10 +1197,12 @@ class TaskListApiTests(InvenTreeAPITestCase):
         """Test that the scheduled tasks endpoint is available."""
         from django_q.models import Schedule
 
+        names = []
+
         for i in range(5):
-            Schedule.objects.create(
-                name='time.sleep', func='time.sleep', args=f'{i + 1}'
-            )
+            name = f'time.sleep_{i}'
+            names.append(name)
+            Schedule.objects.create(name=name, func='time.sleep', args=f'{i + 1}')
 
         n = Schedule.objects.count()
         self.assertGreater(n, 0)
@@ -1205,8 +1210,14 @@ class TaskListApiTests(InvenTreeAPITestCase):
         url = reverse('api-scheduled-task-list')
         response = self.get(url, expected_code=200)
 
-        for task in response.data:
-            self.assertEqual(task['name'], 'time.sleep')
+        self.assertEqual(len(response.data), n)
+
+        # Other durable schedules may exist (e.g. installed by an app's
+        # post-migrate hook), so only check the ones created here
+        reported = [task['name'] for task in response.data]
+
+        for name in names:
+            self.assertIn(name, reported)
 
     def test_task_detail(self):
         """Test the BackgroundTaskDetail API endpoint."""
