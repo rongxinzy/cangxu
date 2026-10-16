@@ -1203,6 +1203,25 @@ OAUTH2_PROVIDER = {
 OAUTH2_CHECK_EXCLUDED = [  # This setting mutes schema checks for these rule/method combinations
     '/api/email/generate/:post',
     '/api/webhook/{endpoint}/:post',
+    # The assistant endpoints authorize the caller's own partner binding and
+    # deliberately do not accept OAuth2 tokens (see cangxu/assistant_api.py)
+    '/api/cangxu/assistant/:get',
+    '/api/cangxu/assistant/attachments/:post',
+    '/api/cangxu/assistant/attachments/{id}/:get',
+    '/api/cangxu/assistant/attachments/{id}/:delete',
+    '/api/cangxu/assistant/attachments/{id}/download/:get',
+    '/api/cangxu/assistant/attachments/{id}/preview/:get',
+    '/api/cangxu/assistant/controls/:post',
+    '/api/cangxu/assistant/messages/:get',
+    '/api/cangxu/assistant/messages/:post',
+    '/api/cangxu/assistant/partners/:get',
+    '/api/cangxu/assistant/partners/:post',
+    '/api/cangxu/assistant/partners/{id}/:patch',
+    '/api/cangxu/assistant/provider/:get',
+    '/api/cangxu/assistant/provider/:put',
+    '/api/cangxu/assistant/provider/test/:post',
+    '/api/cangxu/assistant/receipt-followups/:post',
+    '/api/cangxu/assistant/status/:get',
 ]
 
 if SITE_URL and not TESTING:  # pragma: no cover

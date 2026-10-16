@@ -181,6 +181,7 @@ def get_ruleset_models() -> dict:
             'cangxu_purchasereceiptinspection',
             'cangxu_purchasereceiptfeedback',
             'cangxu_purchasereceiptdisposition',
+            'cangxu_receiptarchiveevidence',
         ],
         RuleSetEnum.SALES_ORDER: [
             'company_company',
@@ -247,6 +248,17 @@ def get_ruleset_ignore() -> list[str]:
         'common_selectionlist',
         'users_owner',
         'users_userprofile',  # User profile is handled in the serializer - only own user can change
+        # Work partner records: the API resolves the caller's own binding and
+        # authorizes each record against it, not against a user role
+        'cangxu_partnerbinding',
+        'cangxu_assistantgrant',
+        'cangxu_assistantduty',
+        'cangxu_assistantdutyslot',
+        'cangxu_assistantcommand',
+        'cangxu_assistantoutboxevent',
+        'cangxu_assistantgatewaydelivery',
+        'cangxu_assistantrunstop',
+        'cangxu_assistantchatattachment',
         # Third-party tables
         'error_report_error',
         'exchange_rate',
