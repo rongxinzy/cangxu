@@ -2,6 +2,7 @@ import { t } from '@lingui/core/macro';
 import { LoadingOverlay, Stack } from '@mantine/core';
 import {
   IconCategory,
+  IconFileSpreadsheet,
   IconInfoCircle,
   IconListCheck,
   IconListDetails,
@@ -12,6 +13,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { ActionButton } from '@lib/components/ActionButton';
 import { ApiEndpoints } from '@lib/enums/ApiEndpoints';
 import { ModelType } from '@lib/enums/ModelType';
 import { UserRoles } from '@lib/enums/Roles';
@@ -27,6 +29,7 @@ import {
   OptionsActionDropdown
 } from '../../components/items/ActionDropdown';
 import { ApiIcon } from '../../components/items/ApiIcon';
+import PartUsageCheckModal from '../../components/modals/PartUsageCheckModal';
 import InstanceDetail from '../../components/nav/InstanceDetail';
 import NavigationTree from '../../components/nav/NavigationTree';
 import { PageDetail } from '../../components/nav/PageDetail';
@@ -67,6 +70,7 @@ export default function CategoryDetail() {
   const settings = useUserSettingsState();
 
   const [treeOpen, setTreeOpen] = useState(false);
+  const [partUsageCheckOpen, setPartUsageCheckOpen] = useState(false);
 
   const {
     instance: category,
@@ -174,6 +178,13 @@ export default function CategoryDetail() {
         }}
       />,
       stockAdjustActions.dropdown,
+      <ActionButton
+        key='part-usage-check'
+        icon={<IconFileSpreadsheet />}
+        tooltip='物料检验'
+        hidden={!user.hasViewRole(UserRoles.part)}
+        onClick={() => setPartUsageCheckOpen(true)}
+      />,
       <OptionsActionDropdown
         key='category-actions'
         tooltip={t`Category Actions`}
@@ -302,6 +313,10 @@ export default function CategoryDetail() {
       {editCategory.modal}
       {deleteCategory.modal}
       {stockAdjustActions.modals.map((modal) => modal.modal)}
+      <PartUsageCheckModal
+        opened={partUsageCheckOpen}
+        onClose={() => setPartUsageCheckOpen(false)}
+      />
       <InstanceDetail
         query={instanceQuery}
         requiredRole={UserRoles.part_category}

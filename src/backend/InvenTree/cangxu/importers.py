@@ -10,6 +10,9 @@ from openpyxl.utils import get_column_letter
 MAX_WORKBOOK_BYTES = 25 * 1024 * 1024
 MAX_WORKBOOK_CELLS = 500_000
 MAX_WORKBOOK_ROWS = 50_000
+PART_USAGE_HEADER = '单机用量'
+DESIGNATOR_HEADER = '位号'
+DESIGNATOR_SEPARATOR = re.compile(r'[,，]')
 
 COMMON_HEADERS = {
     '数量': 'quantity',
@@ -148,6 +151,211 @@ def parse_workbook_rows(upload):
         raise WorkbookImportError('workbook_has_no_populated_rows')
 
     return rows
+
+
+def validate_part_usage_workbook(upload, sheet_name=None):
+    """Validate part usage counts and designators without persisting the workbook."""
+    if upload.size > MAX_WORKBOOK_BYTES:
+        raise WorkbookImportError('workbook_too_large')
+
+    try:
+        workbook = load_workbook(upload, read_only=True, data_only=False)
+    except Exception as exc:
+        raise WorkbookImportError('invalid_xlsx') from exc
+
+    cell_count = 0
+    try:
+        sheets = [sheet.title for sheet in workbook.worksheets]
+        if not sheets:
+            raise WorkbookImportError('workbook_has_no_populated_rows')
+        if len(sheets) > 1 and not sheet_name:
+            return {
+                'status': 'sheet_selection_required',
+                'sheets': sheets,
+                'sheet': None,
+                'checked_rows': 0,
+                'workbook_errors': [],
+                'invalid_rows': [],
+            }
+
+        selected_sheet = sheet_name or sheets[0]
+        if selected_sheet not in sheets:
+            raise WorkbookImportError('worksheet_not_found')
+
+        sheet = workbook[selected_sheet]
+
+        header_row = next(
+            sheet.iter_rows(min_row=1, max_row=1, values_only=False), ()
+        )
+        cell_count += len(header_row)
+        if cell_count > MAX_WORKBOOK_CELLS:
+            raise WorkbookImportError('workbook_too_many_cells')
+
+        usage_column_index = 2
+        designator_column_index = 3
+        workbook_errors = []
+        for field, expected, column, column_index in (
+            ('single_usage', PART_USAGE_HEADER, 'B', usage_column_index),
+            ('designators', DESIGNATOR_HEADER, 'C', designator_column_index),
+        ):
+            cell = _row_cell(header_row, column_index)
+            actual = cell.value if cell is not None else None
+            label = actual.strip() if isinstance(actual, str) else actual
+            if label != expected:
+                workbook_errors.append({
+                    'code': 'invalid_header',
+                    'field': field,
+                    'column': column,
+                    'expected': expected,
+                    'actual': _json_value(actual),
+                })
+
+        if workbook_errors:
+            return {
+                'status': 'invalid',
+                'sheets': sheets,
+                'sheet': selected_sheet,
+                'checked_rows': 0,
+                'workbook_errors': workbook_errors,
+                'invalid_rows': [],
+            }
+
+        checked_rows = 0
+        invalid_rows = []
+
+        for row_index, row in enumerate(
+            sheet.iter_rows(min_row=2, values_only=False), start=2
+        ):
+            cell_count += len(row)
+            if cell_count > MAX_WORKBOOK_CELLS:
+                raise WorkbookImportError('workbook_too_many_cells')
+
+            usage_cell = _row_cell(row, usage_column_index)
+            designator_cell = _row_cell(row, designator_column_index)
+            usage_value = usage_cell.value if usage_cell is not None else None
+            designator_value = (
+                designator_cell.value if designator_cell is not None else None
+            )
+            if _is_blank(usage_value) and _is_blank(designator_value):
+                continue
+
+            row_values = {
+                get_column_letter(column_index): _json_value(cell.value)
+                for column_index, cell in enumerate(row, start=1)
+                if not _is_blank(cell.value)
+            }
+            checked_rows += 1
+            if checked_rows > MAX_WORKBOOK_ROWS:
+                raise WorkbookImportError('workbook_too_many_rows')
+
+            usage, usage_valid, usage_blank = _part_usage_quantity(usage_value)
+            designators, empty_segments = _part_designators(designator_value)
+            errors = []
+
+            if not usage_blank and not usage_valid:
+                errors.append({
+                    'code': 'invalid_single_usage',
+                    'value': _json_value(usage_value),
+                })
+            elif usage_blank and designators:
+                errors.append({
+                    'code': 'missing_single_usage',
+                    'actual': len(designators),
+                })
+
+            if empty_segments:
+                errors.append({
+                    'code': 'invalid_designator_separator',
+                    'segments': empty_segments,
+                })
+            elif not usage_blank and usage_valid and usage != len(designators):
+                errors.append({
+                    'code': 'designator_count_mismatch',
+                    'expected': usage,
+                    'actual': len(designators),
+                })
+
+            if errors:
+                invalid_rows.append({
+                    'row': row_index,
+                    'single_usage': _json_value(usage_value),
+                    'designators': (
+                        '' if _is_blank(designator_value) else str(designator_value)
+                    ),
+                    'designator_count': len(designators),
+                    'row_values': row_values,
+                    'errors': errors,
+                })
+
+        if checked_rows == 0:
+            return {
+                'status': 'invalid',
+                'sheets': sheets,
+                'sheet': selected_sheet,
+                'checked_rows': 0,
+                'workbook_errors': [{'code': 'no_data_rows'}],
+                'invalid_rows': [],
+            }
+
+        return {
+            'status': 'invalid' if invalid_rows else 'valid',
+            'sheets': sheets,
+            'sheet': selected_sheet,
+            'checked_rows': checked_rows,
+            'workbook_errors': [],
+            'invalid_rows': invalid_rows,
+        }
+    except WorkbookImportError:
+        raise
+    except Exception as exc:
+        raise WorkbookImportError('invalid_xlsx') from exc
+    finally:
+        workbook.close()
+
+
+def _row_cell(row, column_index):
+    """Return a cell from a potentially shortened read-only row tuple."""
+    if column_index > len(row):
+        return None
+    return row[column_index - 1]
+
+
+def _is_blank(value):
+    """Return whether an Excel value represents an empty cell."""
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _part_usage_quantity(value):
+    """Return (quantity, is_valid, is_blank) for a part usage cell."""
+    if _is_blank(value):
+        return None, True, True
+    if isinstance(value, bool):
+        return None, False, False
+    if isinstance(value, int):
+        return (value, True, False) if value >= 0 else (None, False, False)
+    if isinstance(value, float):
+        if value.is_integer() and value >= 0:
+            return int(value), True, False
+        return None, False, False
+    if isinstance(value, str):
+        stripped = value.strip()
+        if re.fullmatch(r'\d+', stripped):
+            return int(stripped), True, False
+    return None, False, False
+
+
+def _part_designators(value):
+    """Split a designator cell and reject empty segments other than trailing ones."""
+    if _is_blank(value):
+        return [], []
+
+    segments = [segment.strip() for segment in DESIGNATOR_SEPARATOR.split(str(value))]
+    while segments and not segments[-1]:
+        segments.pop()
+    empty_segments = [
+        index for index, segment in enumerate(segments, start=1) if not segment
+    ]
+    return [segment for segment in segments if segment], empty_segments
 
 
 def normalize_workbook_rows(rows, source_kind):

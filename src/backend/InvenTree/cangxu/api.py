@@ -4,19 +4,25 @@ import hashlib
 import json
 import uuid
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Max, Q, Sum
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
+from rest_framework.views import APIView
 
 import InvenTree.permissions
 from build.models import Build, BuildItem, BuildLine
@@ -33,6 +39,7 @@ from .importers import (
     WorkbookImportError,
     normalize_workbook_rows,
     parse_workbook_rows,
+    validate_part_usage_workbook,
     validate_normalized_import_values,
 )
 from .models import (
@@ -3485,6 +3492,187 @@ class MaterialIssueViewSet(CangxuModelViewSet):
         return Response(self.get_serializer(issue).data, status=status.HTTP_201_CREATED)
 
 
+class PartUsageCheckView(APIView):
+    """Validate part usage and designator columns without saving the workbook."""
+
+    permission_classes = [InvenTree.permissions.RolePermissionOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
+    role_required = 'part.view'
+
+    def get(self, request):
+        """Download a blank workbook using the sample's complete header."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = '物料检验'
+        headers = [
+            '序号',
+            '单机用量',
+            '位号',
+            '值',
+            '封装',
+            '规格型号',
+            '品牌',
+            None,
+            '一博物料编码',
+            '一博物料规格',
+            '制造商型号',
+            '一博物料库存',
+            '品牌',
+            '一博问题',
+            '客户回复',
+            '单机用量',
+            '总需求数（5套）',
+            '实际采购数量',
+            '含税单价',
+            '小计',
+            '物料提供方式',
+        ]
+        column_widths = [
+            13,
+            13,
+            46.3727272727273,
+            14.6272727272727,
+            13,
+            15.8727272727273,
+            13,
+            5.25454545454545,
+            9,
+            23.5,
+            19.5,
+            9,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+        ]
+        for column, value in enumerate(headers, start=1):
+            sheet.cell(1, column, value)
+        for column, width in enumerate(column_widths, start=1):
+            sheet.column_dimensions[
+                sheet.cell(1, column).column_letter
+            ].width = width
+
+        sheet.row_dimensions[1].height = 20.1
+        thin = Side(style='thin')
+        thick = Side(style='thick')
+        standard_header_border = Border(
+            left=thin, right=thin, top=thin, bottom=thin
+        )
+        primary_fill = PatternFill('solid', fgColor='FF00B050')
+        secondary_fill = PatternFill('solid', fgColor='FF92D050')
+        reply_fill = PatternFill('solid', fgColor='FFFFFF00')
+        header_font = Font(name='楷体', size=8)
+        wrapped_header = Alignment(
+            horizontal='center', vertical='center', wrap_text=True
+        )
+        centered_header = Alignment(horizontal='center', vertical='center')
+
+        for column in range(1, len(headers) + 1):
+            cell = sheet.cell(1, column)
+            cell.border = standard_header_border
+            if column == 8:
+                cell.font = Font(name='宋体', size=10)
+                cell.alignment = Alignment(vertical='center')
+                cell.border = Border(top=thin, bottom=thin)
+            else:
+                cell.font = header_font
+                cell.alignment = (
+                    wrapped_header
+                    if column == 3 or column >= 9
+                    else centered_header
+                )
+                if column <= 7:
+                    cell.fill = primary_fill
+                elif column <= 14:
+                    cell.fill = secondary_fill
+                else:
+                    cell.fill = reply_fill
+
+        for column in range(1, 8):
+            sheet.cell(1, column).border = Border(
+                left=thick if column == 1 else thin,
+                right=thick if column == 7 else thin,
+                top=thick,
+                bottom=thin,
+            )
+
+        content = BytesIO()
+        workbook.save(content)
+        response = HttpResponse(
+            content.getvalue(),
+            content_type=(
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ),
+        )
+        response['Content-Disposition'] = (
+            'attachment; filename="part-usage-template.xlsx"; '
+            "filename*=UTF-8''%E7%89%A9%E6%96%99%E6%A3%80%E9%AA%8C"
+            '%E6%A0%87%E5%87%86%E6%A0%BC%E5%BC%8F.xlsx'
+        )
+        return response
+
+    def post(self, request):
+        """Return every invalid worksheet row or the available sheets to select."""
+        upload = request.FILES.get('source_file')
+        if upload is None:
+            return Response(
+                {
+                    'code': 'source_file_required',
+                    'message': _('An XLSX file is required.'),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if Path(upload.name).suffix.lower() != '.xlsx':
+            return Response(
+                {
+                    'code': 'invalid_file_type',
+                    'message': _('Only .xlsx workbooks are supported.'),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sheet_name = request.data.get('sheet_name')
+        if sheet_name is not None and not isinstance(sheet_name, str):
+            return Response(
+                {
+                    'code': 'invalid_sheet_name',
+                    'message': _('The worksheet name is invalid.'),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = validate_part_usage_workbook(
+                upload, sheet_name=sheet_name or None
+            )
+        except WorkbookImportError as exc:
+            code = str(exc)
+            messages = {
+                'workbook_too_large': _('The workbook exceeds the 25 MiB limit.'),
+                'workbook_too_many_cells': _('The workbook exceeds the cell limit.'),
+                'workbook_too_many_rows': _('The workbook exceeds the row limit.'),
+                'workbook_has_no_populated_rows': _(
+                    'The workbook contains no populated rows.'
+                ),
+                'invalid_xlsx': _('The uploaded file is not a readable XLSX workbook.'),
+                'worksheet_not_found': _('The selected worksheet was not found.'),
+            }
+            return Response(
+                {
+                    'code': code,
+                    'message': messages.get(code, _('Invalid workbook.')),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(result)
+
+
 router = DefaultRouter()
 router.register(
     'material-issues', MaterialIssueViewSet, basename='cangxu-material-issue'
@@ -3623,6 +3811,11 @@ router.register(
 )
 
 urlpatterns = [
+    path(
+        'parts/usage-check/',
+        PartUsageCheckView.as_view(),
+        name='cangxu-part-usage-check',
+    ),
     path(
         'assistant/provider/',
         AssistantProviderViewSet.as_view({'get': 'list', 'put': 'save'}),

@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from build.models import Build
 from build.validators import generate_next_build_reference
@@ -3239,3 +3239,258 @@ class CangxuDataImportTestCase(CangxuAPITestCase):
         self.assertEqual(rejected.data['state'], DataImportBatch.State.REJECTED)
         record.refresh_from_db()
         self.assertEqual(record.state, DataImportRecord.State.REJECTED)
+
+
+class CangxuPartUsageCheckTest(CangxuAPITestCase):
+    """Validate material usage workbooks without creating import records."""
+
+    roles = [*CangxuAPITestCase.roles, 'part.view']
+
+    def upload_workbook(self, workbook, filename='part-usage.xlsx'):
+        """Return a fresh in-memory upload for a synthetic workbook."""
+        content = BytesIO()
+        workbook.save(content)
+        return SimpleUploadedFile(
+            filename,
+            content.getvalue(),
+            content_type=(
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ),
+        )
+
+    def check_workbook(self, workbook, sheet_name=None, expected_code=200):
+        """Post one workbook to the read-only validation endpoint."""
+        data = {'source_file': self.upload_workbook(workbook)}
+        if sheet_name is not None:
+            data['sheet_name'] = sheet_name
+        return self.post(
+            reverse('cangxu-part-usage-check'),
+            data,
+            expected_code=expected_code,
+            format='multipart',
+        )
+
+    def test_standard_template_can_be_downloaded(self):
+        """Download the blank workbook expected by the validation endpoint."""
+        response = self.get(
+            reverse('cangxu-part-usage-check'),
+            expected_code=200,
+        )
+
+        self.assertEqual(
+            response['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.assertIn("filename*=UTF-8''", response['Content-Disposition'])
+
+        workbook = load_workbook(BytesIO(response.content))
+        sheet = workbook['物料检验']
+        self.assertEqual(sheet.max_row, 1)
+        self.assertEqual(
+            [
+                sheet.cell(1, column).value
+                for column in range(1, sheet.max_column + 1)
+            ],
+            [
+                '序号',
+                '单机用量',
+                '位号',
+                '值',
+                '封装',
+                '规格型号',
+                '品牌',
+                None,
+                '一博物料编码',
+                '一博物料规格',
+                '制造商型号',
+                '一博物料库存',
+                '品牌',
+                '一博问题',
+                '客户回复',
+                '单机用量',
+                '总需求数（5套）',
+                '实际采购数量',
+                '含税单价',
+                '小计',
+                '物料提供方式',
+            ],
+        )
+        self.assertEqual(sheet.max_column, 21)
+        self.assertEqual(sheet.row_dimensions[1].height, 20.1)
+        self.assertEqual(
+            [
+                sheet.column_dimensions[column].width
+                for column in ['A', 'B', 'C', 'H', 'J', 'K', 'U']
+            ],
+            [13, 13, 46.3727272727273, 5.25454545454545, 23.5, 19.5, 13],
+        )
+        self.assertEqual(sheet['A1'].fill.fgColor.rgb, 'FF00B050')
+        self.assertEqual(sheet['I1'].fill.fgColor.rgb, 'FF92D050')
+        self.assertEqual(sheet['O1'].fill.fgColor.rgb, 'FFFFFF00')
+        self.assertIsNone(sheet['H1'].value)
+        self.assertIsNone(sheet['H1'].fill.patternType)
+
+    def test_valid_usage_counts_and_full_width_separators(self):
+        """Accept blanks, repeated designators, and trailing empty segments."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = 'Synthetic usage'
+        sheet.append(['序号', '单机用量', '位号', '料号'])
+        sheet.append([1, 2, 'C297,C790', 'CX-TEST-001'])
+        sheet.append([2, '3', 'C1，C2,C3,', 'CX-TEST-002'])
+        sheet.append([3, 2, 'C10,C10', 'CX-TEST-003'])
+        sheet.append([4, 0, '', 'CX-TEST-004'])
+        sheet.append([5, None, None, 'CX-TEST-005'])
+        sheet.append([6, '   ', '', None])
+        before_batches = DataImportBatch.objects.count()
+
+        response = self.check_workbook(workbook)
+
+        self.assertEqual(response.data['status'], 'valid')
+        self.assertEqual(response.data['sheet'], 'Synthetic usage')
+        self.assertEqual(response.data['checked_rows'], 4)
+        self.assertEqual(response.data['invalid_rows'], [])
+        self.assertEqual(
+            DataImportBatch.objects.count(), before_batches
+        )
+
+    def test_all_invalid_rows_are_returned_with_reasons(self):
+        """Scan the complete sheet rather than stopping at the first invalid row."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['序号', '单机用量', '位号'])
+        sheet.append([1, 2, 'C1,C2,C3'])
+        sheet.append([2, -1, 'C1'])
+        sheet.append([3, 1.5, 'C1'])
+        sheet.append([4, '', 'C1'])
+        sheet.append([5, 2, 'C1,,C2'])
+        sheet.append([6, 'not-a-number', None])
+        sheet.append([7, None, 'C1,C2'])
+
+        response = self.check_workbook(workbook)
+
+        self.assertEqual(response.data['status'], 'invalid')
+        self.assertEqual(response.data['checked_rows'], 7)
+        self.assertEqual(
+            [row['row'] for row in response.data['invalid_rows']],
+            [2, 3, 4, 5, 6, 7, 8],
+        )
+        errors_by_row = {
+            row['row']: [error['code'] for error in row['errors']]
+            for row in response.data['invalid_rows']
+        }
+        self.assertEqual(errors_by_row[2], ['designator_count_mismatch'])
+        self.assertEqual(errors_by_row[3], ['invalid_single_usage'])
+        self.assertEqual(errors_by_row[4], ['invalid_single_usage'])
+        self.assertEqual(errors_by_row[5], ['missing_single_usage'])
+        self.assertEqual(errors_by_row[6], ['invalid_designator_separator'])
+        self.assertEqual(errors_by_row[7], ['invalid_single_usage'])
+        self.assertEqual(errors_by_row[8], ['missing_single_usage'])
+        self.assertEqual(
+            response.data['invalid_rows'][0]['row_values'],
+            {'A': 1, 'B': 2, 'C': 'C1,C2,C3'},
+        )
+
+    def test_multiple_sheets_require_an_explicit_selection(self):
+        """List sheets first and validate only the sheet selected by the user."""
+        workbook = Workbook()
+        first = workbook.active
+        first.title = 'Synthetic first'
+        first.append(['序号', '单机用量', '位号'])
+        first.append([1, 1, 'C1,C2'])
+        second = workbook.create_sheet('Synthetic second')
+        second.append(['序号', '单机用量', '位号'])
+        second.append([2, 2, 'C20,C21'])
+
+        selected = self.check_workbook(workbook)
+        self.assertEqual(selected.data['status'], 'sheet_selection_required')
+        self.assertEqual(
+            selected.data['sheets'], ['Synthetic first', 'Synthetic second']
+        )
+        self.assertIsNone(selected.data['sheet'])
+
+        validated = self.check_workbook(workbook, sheet_name='Synthetic second')
+        self.assertEqual(validated.data['status'], 'valid')
+        self.assertEqual(validated.data['sheet'], 'Synthetic second')
+        self.assertEqual(validated.data['checked_rows'], 1)
+
+    def test_only_columns_b_and_c_are_used_for_validation(self):
+        """Read B/C columns and ignore repeated labels in later columns."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['序号', '单机用量', '位号', '客户回复', '单机用量'])
+        sheet.append([1, 2, 'C1,C2', 'Synthetic', 99])
+        sheet.append([2, 1, 'C1', 'Synthetic', 'C2,C3'])
+
+        response = self.check_workbook(workbook)
+
+        self.assertEqual(response.data['status'], 'valid')
+        self.assertEqual(response.data['checked_rows'], 2)
+        self.assertEqual(response.data['workbook_errors'], [])
+        self.assertEqual(response.data['invalid_rows'], [])
+
+    def test_invalid_b_or_c_headers_are_reported(self):
+        """Require the first row of B and C to contain the expected labels."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['序号', '用量', '位号'])
+        sheet.append([1, 2])
+
+        response = self.check_workbook(workbook)
+
+        self.assertEqual(response.data['status'], 'invalid')
+        self.assertEqual(response.data['checked_rows'], 0)
+        self.assertEqual(
+            response.data['workbook_errors'],
+            [
+                {
+                    'code': 'invalid_header',
+                    'field': 'single_usage',
+                    'column': 'B',
+                    'expected': '单机用量',
+                    'actual': '用量',
+                }
+            ],
+        )
+
+    def test_invalid_file_and_missing_data_are_rejected(self):
+        """Reject wrong formats, unreadable workbooks, and empty data sets."""
+        before_batches = DataImportBatch.objects.count()
+        wrong_extension = SimpleUploadedFile(
+            'part-usage.csv',
+            '单机用量,位号\n1,C1\n'.encode(),
+            content_type='text/csv',
+        )
+        response = self.post(
+            reverse('cangxu-part-usage-check'),
+            {'source_file': wrong_extension},
+            expected_code=400,
+            format='multipart',
+        )
+        self.assertEqual(response.data['code'], 'invalid_file_type')
+
+        unreadable = SimpleUploadedFile(
+            'part-usage.xlsx',
+            b'not an xlsx workbook',
+            content_type=(
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ),
+        )
+        response = self.post(
+            reverse('cangxu-part-usage-check'),
+            {'source_file': unreadable},
+            expected_code=400,
+            format='multipart',
+        )
+        self.assertEqual(response.data['code'], 'invalid_xlsx')
+
+        workbook = Workbook()
+        workbook.active.append(['序号', '单机用量', '位号'])
+        response = self.check_workbook(workbook)
+        self.assertEqual(response.data['status'], 'invalid')
+        self.assertEqual(
+            response.data['workbook_errors'], [{'code': 'no_data_rows'}]
+        )
+        self.assertEqual(
+            DataImportBatch.objects.count(), before_batches
+        )
