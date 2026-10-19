@@ -253,6 +253,7 @@ export enum ApiEndpoints {
   // Miscellaneous API endpoints
   cangxu_material_issue_list = 'cangxu/material-issues/',
   cangxu_material_issue_return = 'cangxu/material-issues/:id/return_stock/',
+  cangxu_part_usage_check = 'cangxu/parts/usage-check/',
   cangxu_purchase_receipt_list = 'cangxu/purchase-receipts/',
   cangxu_receipt_inspection_list = 'cangxu/receipt-inspections/',
   cangxu_receipt_inspection_detail = 'cangxu/receipt-inspections/:id/',
