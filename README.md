@@ -1,3 +1,10 @@
+> **本仓库已迁移至内网 GitLab：http://172.18.5.188:30089/rongxinzy/cangxu**（2026-10-21）。GitHub 侧不再更新，仅保留只读存档；克隆、提交与评审请走内网 GitLab。
+>
+> **This repository has moved to the intranet GitLab: http://172.18.5.188:30089/rongxinzy/cangxu** (2026-10-21). The GitHub copy is a read-only archive and is no longer updated.
+
+
+---
+
 # 仓序 · Cangxu
 
 面向智算服务器制造的仓储、装配与追溯系统，基于 [InvenTree](https://github.com/inventree/InvenTree) 开发。
